@@ -1,6 +1,8 @@
 """Utility module that helps get a webplayer access token"""
 import os
 import requests
+from bs4 import BeautifulSoup
+import json
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_2) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
@@ -39,14 +41,17 @@ def _get_access_token(session, cookies):
                            headers=headers, cookies=cookies)
     response.raise_for_status()
 
-    access_token = response.cookies['wp_access_token']
+    data = response.content.decode("utf-8")
 
-    expiration = response.cookies['wp_expiration']
-    expiration_date = int(expiration) // 1000
-
-    return access_token, expiration_date
-
-
+    xml_tree = BeautifulSoup(data, 'lxml')
+    script_node = xml_tree.find("script", id="config")
+    config = json.loads(script_node.string)
+    
+    access_token = config['accessToken']
+    expires_timestamp = int(config['accessTokenExpirationTimestampMs']) // 1000
+    
+    return access_token, expires_timestamp
+    
 
 def start_session(username=None, password=None):
     """ Starts session to get access token. """
